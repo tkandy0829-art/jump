@@ -7,6 +7,9 @@ export interface User {
   id: string;
   username: string;
   highscore: number;
+  coins: number;
+  unlockedSkins: string[];
+  currentSkin: string;
   isAdmin?: boolean;
 }
 

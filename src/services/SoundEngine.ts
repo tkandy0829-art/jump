@@ -1,12 +1,6 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 class SoundEngine {
   private audioCtx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
-  private musicOscillators: OscillatorNode[] = [];
   private isMusicPlaying = false;
 
   private init() {
@@ -14,59 +8,12 @@ class SoundEngine {
     this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     this.masterGain = this.audioCtx.createGain();
     this.masterGain.connect(this.audioCtx.destination);
-    this.masterGain.gain.value = 0.2;
+    this.masterGain.gain.value = 0.3;
   }
 
+  // Music disabled as per user request
   public async startMusic() {
-    this.init();
-    if (this.isMusicPlaying) return;
-    this.isMusicPlaying = true;
-
-    if (this.audioCtx?.state === 'suspended') {
-      await this.audioCtx.resume();
-    }
-
-    const playNote = (freq: number, time: number, duration: number) => {
-      if (!this.audioCtx || !this.masterGain) return;
-      const osc = this.audioCtx.createOscillator();
-      const g = this.audioCtx.createGain();
-      
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(freq, time);
-      
-      g.gain.setValueAtTime(0.1, time);
-      g.gain.exponentialRampToValueAtTime(0.0001, time + duration);
-      
-      osc.connect(g);
-      g.connect(this.masterGain);
-      
-      osc.start(time);
-      osc.stop(time + duration);
-    };
-
-    // Simple procedural tech-loop
-    const notes = [261.63, 293.66, 311.13, 349.23, 392.00, 415.30, 466.16]; // Cm scale
-    let step = 0;
-    const loop = () => {
-      if (!this.isMusicPlaying) return;
-      const now = this.audioCtx!.currentTime;
-      const tempo = 0.125;
-      
-      // Bass line
-      if (step % 4 === 0) {
-        playNote(65.41, now, 0.4); // C2
-      }
-      
-      // Melody
-      if (Math.random() > 0.5) {
-        const note = notes[Math.floor(Math.random() * notes.length)];
-        playNote(note, now, 0.2);
-      }
-
-      step++;
-      setTimeout(loop, tempo * 1000);
-    };
-    loop();
+    this.isMusicPlaying = false;
   }
 
   public stopMusic() {
@@ -79,8 +26,8 @@ class SoundEngine {
     const now = this.audioCtx.currentTime;
     const osc = this.audioCtx.createOscillator();
     const g = this.audioCtx.createGain();
-    osc.frequency.setValueAtTime(200, now);
-    osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+    osc.frequency.setValueAtTime(150, now);
+    osc.frequency.exponentialRampToValueAtTime(400, now + 0.1);
     g.gain.setValueAtTime(0.1, now);
     g.gain.exponentialRampToValueAtTime(0.0001, now + 0.1);
     osc.connect(g);
@@ -89,38 +36,87 @@ class SoundEngine {
     osc.stop(now + 0.1);
   }
 
-  public playStomp() {
+  // Jingle effect for 1 second
+  public playCollectJingle() {
     this.init();
     if (!this.audioCtx || !this.masterGain) return;
     const now = this.audioCtx.currentTime;
+    for (let i = 0; i < 5; i++) {
+        const time = now + i * 0.15;
+        const osc = this.audioCtx.createOscillator();
+        const g = this.audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800 + i * 200, time);
+        g.gain.setValueAtTime(0.1, time);
+        g.gain.exponentialRampToValueAtTime(0.0001, time + 0.4);
+        osc.connect(g);
+        g.connect(this.masterGain);
+        osc.start(time);
+        osc.stop(time + 0.4);
+    }
+  }
+
+  // Explosion effect for 1.5 seconds
+  public playStompExplosion() {
+    this.init();
+    if (!this.audioCtx || !this.masterGain) return;
+    const now = this.audioCtx.currentTime;
+    const duration = 1.5;
+    
+    // Noise buffer for explosion
+    const bufferSize = this.audioCtx.sampleRate * duration;
+    const buffer = this.audioCtx.createBuffer(1, bufferSize, this.audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+
+    const noise = this.audioCtx.createBufferSource();
+    noise.buffer = buffer;
+
+    const filter = this.audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1000, now);
+    filter.frequency.exponentialRampToValueAtTime(20, now + duration);
+
+    const g = this.audioCtx.createGain();
+    g.gain.setValueAtTime(0.5, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+    noise.connect(filter);
+    filter.connect(g);
+    g.connect(this.masterGain);
+
+    noise.start(now);
+    noise.stop(now + duration);
+  }
+
+  // Death effect for 2 seconds
+  public playDeathSound() {
+    this.init();
+    if (!this.audioCtx || !this.masterGain) return;
+    const now = this.audioCtx.currentTime;
+    const duration = 2.0;
+
     const osc = this.audioCtx.createOscillator();
     const g = this.audioCtx.createGain();
+    
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(100, now);
-    osc.frequency.exponentialRampToValueAtTime(20, now + 0.2);
-    g.gain.setValueAtTime(0.2, now);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
-    osc.connect(g);
-    g.connect(this.masterGain);
-    osc.start();
-    osc.stop(now + 0.2);
-  }
+    osc.frequency.setValueAtTime(150, now);
+    osc.frequency.linearRampToValueAtTime(40, now + duration);
 
-  public playCollect() {
-    this.init();
-    if (!this.audioCtx || !this.masterGain) return;
-    const now = this.audioCtx.currentTime;
-    const osc = this.audioCtx.createOscillator();
-    const g = this.audioCtx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(800, now);
-    osc.frequency.setValueAtTime(1200, now + 0.05);
-    g.gain.setValueAtTime(0.1, now);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.1);
+    g.gain.setValueAtTime(0.3, now);
+    for (let i = 0; i < 10; i++) {
+        g.gain.setValueAtTime(0.3, now + i * 0.2);
+        g.gain.setValueAtTime(0.05, now + i * 0.2 + 0.1);
+    }
+    g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
     osc.connect(g);
     g.connect(this.masterGain);
-    osc.start();
-    osc.stop(now + 0.1);
+
+    osc.start(now);
+    osc.stop(now + duration);
   }
 }
 

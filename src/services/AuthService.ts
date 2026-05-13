@@ -27,7 +27,10 @@ export const AuthService = {
       id: Math.random().toString(36).substr(2, 9),
       username,
       highscore: 0,
-      isAdmin: username.toLowerCase() === 'admin' // Simple way to bootstrap admin
+      coins: 0,
+      unlockedSkins: ['default'],
+      currentSkin: 'default',
+      isAdmin: username.toLowerCase() === 'admin'
     };
 
     users.push(newUser);
@@ -67,6 +70,58 @@ export const AuthService = {
           currentUser.highscore = score;
           AuthService.setCurrentUser(currentUser);
         }
+      }
+    }
+  },
+
+  addCoins: (userId: string, amount: number) => {
+    const users = AuthService.getUsers();
+    const userIndex = users.findIndex(u => u.id === userId);
+    if (userIndex !== -1) {
+      users[userIndex].coins += amount;
+      localStorage.setItem(USERS_KEY, JSON.stringify(users));
+      
+      const currentUser = AuthService.getCurrentUser();
+      if (currentUser && currentUser.id === userId) {
+        currentUser.coins += amount;
+        AuthService.setCurrentUser(currentUser);
+      }
+    }
+  },
+
+  buySkin: (userId: string, skinId: string, price: number) => {
+    const users = AuthService.getUsers();
+    const userIndex = users.findIndex(u => u.id === userId);
+    if (userIndex !== -1) {
+      const user = users[userIndex];
+      if (user.coins >= price && !user.unlockedSkins.includes(skinId)) {
+        user.coins -= price;
+        user.unlockedSkins.push(skinId);
+        localStorage.setItem(USERS_KEY, JSON.stringify(users));
+        
+        const currentUser = AuthService.getCurrentUser();
+        if (currentUser && currentUser.id === userId) {
+          currentUser.coins -= price;
+          currentUser.unlockedSkins.push(skinId);
+          AuthService.setCurrentUser(currentUser);
+        }
+        return true;
+      }
+    }
+    return false;
+  },
+
+  setCurrentSkin: (userId: string, skinId: string) => {
+    const users = AuthService.getUsers();
+    const userIndex = users.findIndex(u => u.id === userId);
+    if (userIndex !== -1) {
+      users[userIndex].currentSkin = skinId;
+      localStorage.setItem(USERS_KEY, JSON.stringify(users));
+      
+      const currentUser = AuthService.getCurrentUser();
+      if (currentUser && currentUser.id === userId) {
+        currentUser.currentSkin = skinId;
+        AuthService.setCurrentUser(currentUser);
       }
     }
   },

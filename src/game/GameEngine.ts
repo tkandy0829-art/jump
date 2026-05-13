@@ -39,6 +39,9 @@ export class GameEngine {
   private isMovementPaused = false;
   private currentSpeed = 8;
   private speedMultiplier = 1;
+  private currentSkin = 'default';
+  private coinsGained = 0;
+  private deathTimer = 0;
 
   // Constants for "쫀득한 조작감" (Juicy Controls)
   private readonly GRAVITY_UP = 0.5;
@@ -70,6 +73,10 @@ export class GameEngine {
     };
 
     this.initLevel();
+  }
+
+  public setSkin(skin: string) {
+    this.currentSkin = skin;
   }
 
   private initLevel() {
@@ -307,7 +314,7 @@ export class GameEngine {
                this.player.vel.y = 0;
                if (e.type === 'block') {
                  this.hitBlock(e);
-                 soundEngine.playCollect();
+                 soundEngine.playCollectJingle();
                }
              }
            } else {
@@ -325,6 +332,7 @@ export class GameEngine {
         } else if (e.type === 'enemy') {
           if (this.player.vel.y > 0 && this.player.pos.y < e.pos.y) {
             this.stompEnemy(e);
+            soundEngine.playStompExplosion();
           } else {
             this.gameOver();
           }
@@ -341,6 +349,7 @@ export class GameEngine {
   private hitBlock(e: GameObject) {
     if (e.hasItem) {
       this.score += 100;
+      this.coinsGained += 100;
       e.hasItem = false;
       e.color = '#1F2937'; // Hit state
     }
@@ -349,8 +358,9 @@ export class GameEngine {
   private stompEnemy(e: GameObject) {
     this.player.vel.y = -10; // Bounce
     this.score += 200;
+    this.coinsGained += 200;
     this.entities = this.entities.filter(ent => ent.id !== e.id);
-    soundEngine.playStomp();
+    soundEngine.playStompExplosion();
   }
 
   private collides(a: GameObject, b: GameObject): boolean {
@@ -361,8 +371,19 @@ export class GameEngine {
   }
 
   private gameOver() {
+    if (this.isGameOver) return;
     this.isGameOver = true;
-    window.dispatchEvent(new CustomEvent('gameover', { detail: { score: this.score + this.distance } }));
+    soundEngine.playDeathSound();
+    
+    // Dispatch after 2 seconds as requested
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('gameover', { 
+        detail: { 
+          score: this.score + this.distance,
+          coins: this.coinsGained
+        } 
+      }));
+    }, 2000);
   }
 
   public draw() {
@@ -453,33 +474,56 @@ export class GameEngine {
     const legH = h * 0.35;
     const armH = h * 0.25;
 
-    // 1. Back Leg (Darker Blue)
-    this.drawLimb(x + w/2, y + h - legH, w * 0.35, legH, -swingAngle, '#1D4ED8'); 
-    
-    // 2. Back Arm (Darker Green)
-    this.drawLimb(x + w/2, y + headSize + 5, w * 0.25, armH, -swingAngle * 0.8, '#15803D');
+    // Skin Color Mapping
+    let shirtColor = '#22C55E';
+    let backShirtColor = '#15803D';
+    let pantsColor = '#3B82F6';
+    let backPantsColor = '#1D4ED8';
 
-    // 3. Torso (Green Shirt)
-    this.ctx.fillStyle = '#22C55E';
+    if (this.currentSkin === 'red') { shirtColor = '#EF4444'; backShirtColor = '#991B1B'; }
+    else if (this.currentSkin === 'yellow') { shirtColor = '#F59E0B'; backShirtColor = '#92400E'; }
+    else if (this.currentSkin === 'blue') { shirtColor = '#3B82F6'; backShirtColor = '#1E40AF'; }
+    else if (this.currentSkin === 'black') { shirtColor = '#1F2937'; backShirtColor = '#111827'; }
+    else if (this.currentSkin === 'fire') { shirtColor = '#3B82F6'; backShirtColor = '#1E40AF'; } // Blue base
+
+    // 1. Back Leg
+    this.drawLimb(x + w/2, y + h - legH, w * 0.35, legH, -swingAngle, backPantsColor); 
+    
+    // 2. Back Arm
+    this.drawLimb(x + w/2, y + headSize + 5, w * 0.25, armH, -swingAngle * 0.8, backShirtColor);
+
+    // 3. Torso
+    this.ctx.fillStyle = shirtColor;
     this.ctx.beginPath();
     this.ctx.roundRect(x + (w - torsoW)/2, y + headSize - 2, torsoW, torsoH, 4);
     this.ctx.fill();
 
-    // 4. Head (Flesh Color)
+    // Fire Detail for 'fire' skin
+    if (this.currentSkin === 'fire') {
+      this.ctx.fillStyle = '#EF4444';
+      this.ctx.beginPath();
+      this.ctx.arc(x + w/2, y + headSize + torsoH/2, 4, 0, Math.PI * 2);
+      this.ctx.fill();
+      // Glow for fire
+      this.ctx.shadowBlur = 10;
+      this.ctx.shadowColor = '#EF4444';
+    }
+
+    // 4. Head
     this.ctx.fillStyle = '#FFDBAC';
     this.ctx.beginPath();
     this.ctx.arc(x + w/2, y + headSize/2, headSize/2, 0, Math.PI * 2);
     this.ctx.fill();
 
-    // Face Detail (Eye looking forward)
+    // Face Detail
     this.ctx.fillStyle = '#111';
     this.ctx.fillRect(x + w/2 + 4, y + headSize/2 - 2, 3, 3);
 
-    // 5. Front Leg (Blue Jeans)
-    this.drawLimb(x + w/2, y + h - legH, w * 0.35, legH, swingAngle, '#3B82F6'); 
+    // 5. Front Leg
+    this.drawLimb(x + w/2, y + h - legH, w * 0.35, legH, swingAngle, pantsColor); 
 
-    // 6. Front Arm (Green)
-    this.drawLimb(x + w/2, y + headSize + 5, w * 0.25, armH, swingAngle * 0.8, '#22C55E');
+    // 6. Front Arm
+    this.drawLimb(x + w/2, y + headSize + 5, w * 0.25, armH, swingAngle * 0.8, shirtColor);
 
     this.ctx.restore();
   }
@@ -508,6 +552,7 @@ export class GameEngine {
     this.score = 0;
     this.distance = 0;
     this.difficulty = 1;
+    this.coinsGained = 0;
     this.isGameOver = false;
     this.isMovementPaused = false;
     this.player.pos = { x: 50, y: 300 };
