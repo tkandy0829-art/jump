@@ -495,7 +495,11 @@ export class GameEngine {
     // 3. Torso
     this.ctx.fillStyle = shirtColor;
     this.ctx.beginPath();
-    this.ctx.roundRect(x + (w - torsoW)/2, y + headSize - 2, torsoW, torsoH, 4);
+    if (this.ctx.roundRect) {
+      this.ctx.roundRect(x + (w - torsoW)/2, y + headSize - 2, torsoW, torsoH, 4);
+    } else {
+      this.ctx.rect(x + (w - torsoW)/2, y + headSize - 2, torsoW, torsoH);
+    }
     this.ctx.fill();
 
     // Fire Detail for 'fire' skin
@@ -534,7 +538,11 @@ export class GameEngine {
     this.ctx.rotate(angle);
     this.ctx.fillStyle = color;
     this.ctx.beginPath();
-    this.ctx.roundRect(-w/2, 0, w, h, w/2);
+    if (this.ctx.roundRect) {
+      this.ctx.roundRect(-w/2, 0, w, h, w/2);
+    } else {
+      this.ctx.rect(-w/2, 0, w, h);
+    }
     this.ctx.fill();
     this.ctx.restore();
   }

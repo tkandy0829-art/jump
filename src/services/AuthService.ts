@@ -53,7 +53,15 @@ export const AuthService = {
 
   getCurrentUser: (): User | null => {
     const data = localStorage.getItem(CURRENT_USER_KEY);
-    return data ? JSON.parse(data) : null;
+    if (!data) return null;
+    const user = JSON.parse(data) as User;
+    
+    // Safety migration for old user data
+    if (user.coins === undefined) user.coins = 0;
+    if (!user.unlockedSkins) user.unlockedSkins = ['default'];
+    if (!user.currentSkin) user.currentSkin = 'default';
+    
+    return user;
   },
 
   updateHighscore: (userId: string, score: number) => {
