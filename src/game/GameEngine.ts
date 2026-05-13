@@ -22,6 +22,7 @@ export interface GameObject {
   timer?: number;
   opacity?: number;
   isTouched?: boolean;
+  animateTimer?: number;
 }
 
 export class GameEngine {
@@ -395,18 +396,15 @@ export class GameEngine {
       }
       if (e.behavior === 'crumbling' && e.isTouched) {
         this.ctx.globalAlpha = e.timer ?? 1;
-        // Add shaking effect for crumbling
         const shake = (1 - (e.timer ?? 1)) * 10;
         this.ctx.translate((Math.random() - 0.5) * shake, 0);
       }
       if (e.behavior === 'bouncy') {
-        // Draw some visual indicator for bouncy
         this.ctx.shadowBlur = 10;
         this.ctx.shadowColor = e.color;
       }
 
       this.ctx.fillStyle = e.color;
-      // Border for blocks/platforms
       this.ctx.strokeStyle = '#374151';
       this.ctx.lineWidth = 1;
       this.ctx.fillRect(e.pos.x, e.pos.y, e.size.x, e.size.y);
@@ -421,19 +419,79 @@ export class GameEngine {
       this.ctx.restore();
     });
 
-    // Player
-    this.ctx.fillStyle = this.player.color;
-    // Glow effect
-    this.ctx.shadowBlur = 15;
-    this.ctx.shadowColor = 'rgba(255, 255, 255, 0.4)';
-    this.ctx.fillRect(this.player.pos.x, this.player.pos.y, this.player.size.x, this.player.size.y);
-    this.ctx.shadowBlur = 0; // Reset for eyes
-    
-    // Eyes
-    this.ctx.fillStyle = '#FFFFFF';
-    this.ctx.fillRect(this.player.pos.x + 22, this.player.pos.y + 12, 4, 4);
-    this.ctx.fillRect(this.player.pos.x + 12, this.player.pos.y + 12, 4, 4);
+    this.drawPlayer();
 
+    this.ctx.restore();
+  }
+
+  private drawPlayer() {
+    const p = this.player;
+    const x = p.pos.x;
+    const y = p.pos.y;
+    const w = p.size.x;
+    const h = p.size.y;
+    
+    // Animation state: moving on ground
+    const isMoving = Math.abs(p.vel.x) > 0.1 && !this.isMovementPaused && p.isGrounded;
+    const time = performance.now() / 1000;
+    
+    // 0.5s for a swap (front to back) means 1s for a full cycle (front-back-front)
+    const frequency = 1; 
+    const walkCycle = isMoving ? Math.sin(time * Math.PI * 2 * frequency) : 0;
+    const swingAngle = walkCycle * 0.6; // ~35 degrees max swing
+
+    this.ctx.save();
+    
+    // Glow effect for the hero
+    this.ctx.shadowBlur = 15;
+    this.ctx.shadowColor = 'rgba(34, 197, 94, 0.3)';
+
+    // Parts setup
+    const headSize = w * 0.55;
+    const torsoW = w * 0.7;
+    const torsoH = h * 0.35;
+    const legH = h * 0.35;
+    const armH = h * 0.25;
+
+    // 1. Back Leg (Darker Blue)
+    this.drawLimb(x + w/2, y + h - legH, w * 0.35, legH, -swingAngle, '#1D4ED8'); 
+    
+    // 2. Back Arm (Darker Green)
+    this.drawLimb(x + w/2, y + headSize + 5, w * 0.25, armH, -swingAngle * 0.8, '#15803D');
+
+    // 3. Torso (Green Shirt)
+    this.ctx.fillStyle = '#22C55E';
+    this.ctx.beginPath();
+    this.ctx.roundRect(x + (w - torsoW)/2, y + headSize - 2, torsoW, torsoH, 4);
+    this.ctx.fill();
+
+    // 4. Head (Flesh Color)
+    this.ctx.fillStyle = '#FFDBAC';
+    this.ctx.beginPath();
+    this.ctx.arc(x + w/2, y + headSize/2, headSize/2, 0, Math.PI * 2);
+    this.ctx.fill();
+
+    // Face Detail (Eye looking forward)
+    this.ctx.fillStyle = '#111';
+    this.ctx.fillRect(x + w/2 + 4, y + headSize/2 - 2, 3, 3);
+
+    // 5. Front Leg (Blue Jeans)
+    this.drawLimb(x + w/2, y + h - legH, w * 0.35, legH, swingAngle, '#3B82F6'); 
+
+    // 6. Front Arm (Green)
+    this.drawLimb(x + w/2, y + headSize + 5, w * 0.25, armH, swingAngle * 0.8, '#22C55E');
+
+    this.ctx.restore();
+  }
+
+  private drawLimb(x: number, y: number, w: number, h: number, angle: number, color: string) {
+    this.ctx.save();
+    this.ctx.translate(x, y);
+    this.ctx.rotate(angle);
+    this.ctx.fillStyle = color;
+    this.ctx.beginPath();
+    this.ctx.roundRect(-w/2, 0, w, h, w/2);
+    this.ctx.fill();
     this.ctx.restore();
   }
 
