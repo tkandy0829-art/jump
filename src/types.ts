@@ -8,8 +8,11 @@ export interface User {
   username: string;
   highscore: number;
   coins: number;
-  unlockedSkins: string[];
-  currentSkin: string;
+  unlockedItems: string[];
+  currentShirt: string;
+  currentPants: string;
+  currentHair: string;
+  currentSet: string | null;
   isAdmin?: boolean;
 }
 

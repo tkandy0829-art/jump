@@ -118,6 +118,27 @@ class SoundEngine {
     osc.start(now);
     osc.stop(now + duration);
   }
+
+  public playGunshot() {
+    this.init();
+    if (!this.audioCtx || !this.masterGain) return;
+    const now = this.audioCtx.currentTime;
+    const osc = this.audioCtx.createOscillator();
+    const gain = this.audioCtx.createGain();
+    
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(150, now);
+    osc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+    
+    gain.gain.setValueAtTime(0.5, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+    
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    
+    osc.start();
+    osc.stop(now + 0.2);
+  }
 }
 
 export const soundEngine = new SoundEngine();

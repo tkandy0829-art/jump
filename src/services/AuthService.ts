@@ -28,8 +28,11 @@ export const AuthService = {
       username,
       highscore: 0,
       coins: 0,
-      unlockedSkins: ['default'],
-      currentSkin: 'default',
+      unlockedItems: ['shirt_default', 'pants_default', 'hair_default'],
+      currentShirt: 'shirt_default',
+      currentPants: 'pants_default',
+      currentHair: 'hair_default',
+      currentSet: null,
       isAdmin: username.toLowerCase() === 'admin'
     };
 
@@ -58,8 +61,13 @@ export const AuthService = {
     
     // Safety migration for old user data
     if (user.coins === undefined) user.coins = 0;
-    if (!user.unlockedSkins) user.unlockedSkins = ['default'];
-    if (!user.currentSkin) user.currentSkin = 'default';
+    if (!user.unlockedItems) {
+        user.unlockedItems = (user as any).unlockedSkins || ['shirt_default', 'pants_default', 'hair_default'];
+    }
+    if (!user.currentShirt) user.currentShirt = (user as any).currentSkin || 'shirt_default';
+    if (!user.currentPants) user.currentPants = 'pants_default';
+    if (!user.currentHair) user.currentHair = 'hair_default';
+    if (user.currentSet === undefined) user.currentSet = null;
     
     return user;
   },
@@ -97,20 +105,20 @@ export const AuthService = {
     }
   },
 
-  buySkin: (userId: string, skinId: string, price: number) => {
+  buyItem: (userId: string, itemId: string, price: number) => {
     const users = AuthService.getUsers();
     const userIndex = users.findIndex(u => u.id === userId);
     if (userIndex !== -1) {
       const user = users[userIndex];
-      if (user.coins >= price && !user.unlockedSkins.includes(skinId)) {
+      if (user.coins >= price && !user.unlockedItems.includes(itemId)) {
         user.coins -= price;
-        user.unlockedSkins.push(skinId);
+        user.unlockedItems.push(itemId);
         localStorage.setItem(USERS_KEY, JSON.stringify(users));
         
         const currentUser = AuthService.getCurrentUser();
         if (currentUser && currentUser.id === userId) {
           currentUser.coins -= price;
-          currentUser.unlockedSkins.push(skinId);
+          currentUser.unlockedItems.push(itemId);
           AuthService.setCurrentUser(currentUser);
         }
         return true;
@@ -119,16 +127,26 @@ export const AuthService = {
     return false;
   },
 
-  setCurrentSkin: (userId: string, skinId: string) => {
+  equipItem: (userId: string, itemId: string, category: string) => {
     const users = AuthService.getUsers();
     const userIndex = users.findIndex(u => u.id === userId);
     if (userIndex !== -1) {
-      users[userIndex].currentSkin = skinId;
+      const user = users[userIndex];
+      if (category === 'shirt') user.currentShirt = itemId;
+      else if (category === 'pants') user.currentPants = itemId;
+      else if (category === 'hair') user.currentHair = itemId;
+      else if (category === 'set') user.currentSet = itemId;
+      else if (category === 'clear_set') user.currentSet = null;
+
       localStorage.setItem(USERS_KEY, JSON.stringify(users));
       
       const currentUser = AuthService.getCurrentUser();
       if (currentUser && currentUser.id === userId) {
-        currentUser.currentSkin = skinId;
+        if (category === 'shirt') currentUser.currentShirt = itemId;
+        else if (category === 'pants') currentUser.currentPants = itemId;
+        else if (category === 'hair') currentUser.currentHair = itemId;
+        else if (category === 'set') currentUser.currentSet = itemId;
+        else if (category === 'clear_set') currentUser.currentSet = null;
         AuthService.setCurrentUser(currentUser);
       }
     }
